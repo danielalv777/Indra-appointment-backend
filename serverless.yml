@@ -1,0 +1,210 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: cisko7projects
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: indra-appointment
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: Indra-Appointment-Backend
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-west-2
+  memorySize: 1024
+  timeout: 30
+  environment:
+    APPOINTMENTS_TABLE: AppointmentsTable
+    SNS_TOPIC_ARN:
+      Ref: AppointmentsSNSTopic
+    SQS_PE_URL:
+      Ref: SQSPEQueue
+    SQS_CL_URL:
+      Ref: SQSCLQueue
+    # MySQL
+    RDS_HOST: ${env:RDS_HOST}
+    RDS_PORT: ${env:RDS_PORT}
+    RDS_USER: ${env:RDS_USER}
+    RDS_PASSWORD: ${env:RDS_PASSWORD}
+    RDS_DATABASE: ${env:RDS_DATABASE}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+          Resource:
+            - Fn::GetAtt: [AppointmentsTable, Arn]
+            - !Sub '${AppointmentsTable.Arn}/index/*'
+
+        # Permiso para publicar al SNS
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            - Ref: AppointmentsSNSTopic
+
+        # Permiso para SQS
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+          Resource:
+            - Fn::GetAtt: [SQSPEQueue, Arn]
+            - Fn::GetAtt: [SQSCLQueue, Arn]
+
+plugins:
+  - serverless-offline
+  - serverless-openapi-documentation
+
+package:
+  individually: true
+  excludeDevDependencies: true
+  exclude:
+    - node_modules/**
+    - .git/**
+    - test/**
+    - README.md
+
+functions:
+  appointment:
+    handler: src/lambdas/appointment/handler.handler
+    events:
+      - http:
+          path: appointments
+          method: post
+      - http:
+          path: appointments/{insuredId}
+          method: get
+
+  appointment_pe:
+    handler: src/lambdas/appointment_pe/handler.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSPEQueue, Arn]
+          batchSize: 1
+    vpc:
+      securityGroupIds:
+        - sg-0204dfd38ec948db9 # Security group que permita tráfico al RDS (MySQL)
+      subnetIds:
+        - subnet-0b2024a926dd1dc6f # Subred privada 1
+        - subnet-0a4692cd2ac93a41c # Subred privada 2
+
+  appointment_cl:
+    handler: src/lambdas/appointment_cl/handler.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSCLQueue, Arn]
+          batchSize: 1
+    vpc:
+      securityGroupIds:
+        - sg-0204dfd38ec948db9
+      subnetIds:
+        - subnet-0b2024a926dd1dc6f
+        - subnet-0a4692cd2ac93a41c
+
+resources:
+  Resources:
+    AppointmentsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AppointmentsTable
+        AttributeDefinitions:
+          - AttributeName: insuredId
+            AttributeType: S
+          - AttributeName: scheduleId
+            AttributeType: N
+          - AttributeName: status
+            AttributeType: S
+        KeySchema:
+          - AttributeName: insuredId
+            KeyType: HASH
+          - AttributeName: scheduleId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: status-index
+            KeySchema:
+              - AttributeName: status
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    # SNS Topic
+    AppointmentsSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: appointments-sns-topic
+
+    # SQS Queues por país
+    SQSPEQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: SQS_PE
+
+    SQSCLQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: SQS_CL
+
+    # SNS → SQS PE (filtro: PE)
+    SNSSubscriptionPE:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn:
+          Ref: AppointmentsSNSTopic
+        Protocol: sqs
+        Endpoint:
+          Fn::GetAtt: [SQSPEQueue, Arn]
+        FilterPolicy:
+          countryISO: ['PE']
+
+    # SNS → SQS CL (filtro: CL)
+    SNSSubscriptionCL:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn:
+          Ref: AppointmentsSNSTopic
+        Protocol: sqs
+        Endpoint:
+          Fn::GetAtt: [SQSCLQueue, Arn]
+        FilterPolicy:
+          countryISO: ['CL']
+
+    # Permisos para que SNS pueda publicar en las colas
+    SQSPolicyPE:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: SQSPEQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action: sqs:SendMessage
+              Resource:
+                Fn::GetAtt: [SQSPEQueue, Arn]
+              Condition:
+                ArnEquals:
+                  aws:SourceArn:
+                    Ref: AppointmentsSNSTopic
+
+    SQSPolicyCL:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: SQSCLQueue
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action: sqs:SendMessage
+              Resource:
+                Fn::GetAtt: [SQSCLQueue, Arn]
+              Condition:
+                ArnEquals:
+                  aws:SourceArn:
+                    Ref: AppointmentsSNSTopic
