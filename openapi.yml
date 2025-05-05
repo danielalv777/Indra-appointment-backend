@@ -72,8 +72,14 @@ paths:
             examples:
               example1:
                 value:
-                  - message: 'Appointment in proccess...'
-                    id: '4e4b7367-e6e7-4439-ae65-d42a5a09ae2d'
+                  insuredId: '00004'
+                  scheduleId: 101
+                  countryISO: 'PE'
+              example2:
+                value:
+                  insuredId: '00004'
+                  scheduleId: 77
+                  countryISO: 'CL'
       responses:
         '201':
           description: Cita creada correctamente y en proceso

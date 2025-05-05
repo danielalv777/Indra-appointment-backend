@@ -147,6 +147,17 @@ custom:
               application/json:
                 schema:
                   $ref: '#/components/schemas/NewAppointment'
+                examples:
+                  example1:
+                    value:
+                      insuredId: '00004'
+                      scheduleId: 101
+                      countryISO: 'PE'
+                  example2:
+                    value:
+                      insuredId: '00004'
+                      scheduleId: 77
+                      countryISO: 'CL'
           responses:
             '201':
               description: 'Cita creada correctamente y en proceso.'
