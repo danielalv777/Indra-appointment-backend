@@ -33,7 +33,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         return {
           statusCode: 404,
           body: JSON.stringify({
-            message: `No appointments found for insuredId: ${pathParams.insuredId}`,
+            message: `Agendamientos no encontrados para el Id del asegurado: ${pathParams.insuredId}`,
           }),
         };
       }
@@ -53,7 +53,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     console.log('❌ Error en Appointment', error);
     if (error.name === 'ZodError') {
       return {
-        statusCode: 400,
+        statusCode: 401,
         body: JSON.stringify({
           message: 'Error de validación',
           errors: error.issues.map((issue: any) => ({

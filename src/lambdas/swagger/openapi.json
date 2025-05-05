@@ -1,0 +1,202 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Appointment API",
+    "version": "1.0.0",
+    "description": "API para registrar y consultar citas medicas por asegurado."
+  },
+  "paths": {
+    "/appointments": {
+      "get": {
+        "summary": "Obtener citas por asegurado",
+        "description": "Obtiene todas las citas de un asegurado por su ID.",
+        "operationId": "getAppointments",
+        "parameters": [
+          {
+            "name": "insuredId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ID del asegurado para filtrar las citas."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de citas obtenidas correctamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Appointment"
+                  }
+                },
+                "examples": {
+                  "example1": {
+                    "value": [
+                      {
+                        "id": "4e4b7367-e6e7-4439-ae65-d42a5a09ae2d",
+                        "insuredId": "00004",
+                        "scheduleId": 101,
+                        "countryISO": "PE",
+                        "status": "pending",
+                        "createdAt": "2025-05-04T12:30:00Z"
+                      }
+                    ]
+                  },
+                  "example2": {
+                    "value": [
+                      {
+                        "id": "86ea4cef-ad07-4084-9111-64531e8a2c49",
+                        "insuredId": "00004",
+                        "scheduleId": 102,
+                        "countryISO": "PE",
+                        "status": "confirmed",
+                        "createdAt": "2025-05-04T12:30:00Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No se encontraron citas para el asegurado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error en la estructura de la solicitud"
+          },
+          "401": {
+            "description": "Error de validación en parámetros"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          }
+        }
+      },
+      "post": {
+        "summary": "Crear una nueva cita",
+        "description": "Crea una nueva cita en el sistema.",
+        "operationId": "createAppointment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewAppointment"
+              },
+              "examples": {
+                "example1": {
+                  "value": [
+                    {
+                      "message": "Appointment in proccess...",
+                      "id": "4e4b7367-e6e7-4439-ae65-d42a5a09ae2d"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cita creada correctamente y en proceso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error en la estructura de la solicitud"
+          },
+          "401": {
+            "description": "Error de validación en los datos"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Appointment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID único de la cita"
+          },
+          "insuredId": {
+            "type": "string",
+            "description": "ID del asegurado"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "description": "ID del horario de la cita"
+          },
+          "countryISO": {
+            "type": "string",
+            "description": "Código ISO del país del asegurado"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "failed"],
+            "description": "Estado de la cita"
+          }
+        },
+        "required": ["insuredId"]
+      },
+      "NewAppointment": {
+        "type": "object",
+        "properties": {
+          "insuredId": {
+            "type": "string",
+            "description": "ID del asegurado"
+          },
+          "scheduleId": {
+            "type": "integer",
+            "description": "ID del horario de la cita"
+          },
+          "countryISO": {
+            "type": "string",
+            "description": "Código ISO del país del asegurado"
+          }
+        },
+        "required": ["insuredId", "scheduleId", "countryISO"]
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Mensaje indicando que la cita está en proceso"
+          },
+          "id": {
+            "type": "string",
+            "description": "ID único del registro de la cita en DynamoDB"
+          }
+        },
+        "required": ["message", "id"]
+      }
+    }
+  }
+}

@@ -70,8 +70,100 @@ provider:
 plugins:
   - serverless-offline
   - serverless-openapi-documentation
+  - serverless-finch
+
+custom:
+  documentation:
+    version: '1'
+    title: 'Appointment API'
+    description: 'API para registrar y consultar citas medicas por asegurado.'
+    models:
+      Appointment:
+        type: object
+        properties:
+          insuredId:
+            type: string
+            description: 'ID del asegurado.'
+          date:
+            type: string
+            format: date-time
+            description: 'Fecha y hora de la cita.'
+      NewAppointment:
+        type: object
+        properties:
+          insuredId:
+            type: string
+            description: 'ID del asegurado.'
+          scheduleId:
+            type: integer
+            description: 'ID del horario de la cita.'
+          countryISO:
+            type: string
+            description: 'Código ISO del país.'
+      MessageResponse:
+        type: object
+        properties:
+          message:
+            type: string
+            description: 'Mensaje indicando que la cita está en proceso.'
+          id:
+            type: string
+            description: 'ID único del registro de la cita en DynamoDB.'
+    paths:
+      /appointments:
+        get:
+          summary: 'Obtener citas por asegurado'
+          description: 'Obtiene todas las citas de un asegurado por su ID.'
+          operationId: getAppointments
+          parameters:
+            - name: insuredId
+              in: path
+              required: true
+              schema:
+                type: string
+              description: 'ID del asegurado para filtrar las citas.'
+          responses:
+            '200':
+              description: 'Lista de citas obtenidas correctamente.'
+              content:
+                application/json:
+                  schema:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+            '404':
+              description: 'No se encontraron citas para el asegurado.'
+            '400':
+              description: 'Error en la estructura de la solicitud.'
+            '500':
+              description: 'Error interno del servidor.'
+        post:
+          summary: 'Crear una nueva cita'
+          description: 'Crea una nueva cita en el sistema.'
+          operationId: createAppointment
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/NewAppointment'
+          responses:
+            '201':
+              description: 'Cita creada correctamente y en proceso.'
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MessageResponse'
+            '400':
+              description: 'Error en la estructura de la solicitud.'
+            '401':
+              description: 'Error de validación en los datos.'
+            '500':
+              description: 'Error interno del servidor.'
 
 package:
+  include:
+    - src/lambdas/swagger/openapi.json
   individually: true
   excludeDevDependencies: true
   exclude:
@@ -126,6 +218,13 @@ functions:
       subnetIds:
         - subnet-0b2024a926dd1dc6f
         - subnet-0a4692cd2ac93a41c
+
+  swagger:
+    handler: src/lambdas/swagger/handler.swagger
+    events:
+      - http:
+          path: docs
+          method: get
 
 resources:
   Resources:
