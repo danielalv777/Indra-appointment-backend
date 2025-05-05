@@ -219,13 +219,6 @@ functions:
         - subnet-0b2024a926dd1dc6f
         - subnet-0a4692cd2ac93a41c
 
-  swagger:
-    handler: src/lambdas/swagger/handler.swagger
-    events:
-      - http:
-          path: docs
-          method: get
-
 resources:
   Resources:
     AppointmentsTable:
