@@ -29,6 +29,15 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         pathParams.insuredId
       );
 
+      if (appointments.length === 0) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({
+            message: `No appointments found for insuredId: ${pathParams.insuredId}`,
+          }),
+        };
+      }
+
       return {
         statusCode: 200,
         body: JSON.stringify(appointments),
@@ -41,8 +50,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       body: JSON.stringify({ error: `Method ${method} not allowed` }),
     };
   } catch (error: any) {
-    console.error('Error:', error);
-
+    console.log('❌ Error en Appointment', error);
     if (error.name === 'ZodError') {
       return {
         statusCode: 400,
@@ -67,7 +75,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     }
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Internal server error' }),
+      body: JSON.stringify({ message: '❌ Internal server error', error }),
     };
   }
 };

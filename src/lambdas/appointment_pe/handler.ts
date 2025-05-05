@@ -1,5 +1,6 @@
 import { SQSEvent, SQSHandler } from 'aws-lambda';
 import { saveToMySQL } from '../../dbController/mysql/rds_appointment';
+import { sendConfirmationToEventBridge } from '../../shared/eventbridge';
 
 export const handler: SQSHandler = async (event: SQSEvent) => {
   for (const record of event.Records) {
@@ -30,6 +31,10 @@ export const handler: SQSHandler = async (event: SQSEvent) => {
       await saveToMySQL(message);
 
       console.log('✅ Guardado en MySQL con éxito');
+
+      // Enviar el evento de confirmación a EventBridge
+      await sendConfirmationToEventBridge(message.id, message.countryISO);
+      console.log('✅ Enviado a EventBridge con exito');
     } catch (err) {
       console.error('❌ Error procesando mensaje:', err);
       // puedes lanzar el error si quieres reintentos

@@ -19,15 +19,53 @@ export async function saveAppointmentToDynamo(item: Appointment) {
 }
 
 export async function queryAppointmentsByInsuredId(insuredId: string) {
-  const result = await dynamo
-    .query({
-      TableName: tableName,
-      KeyConditionExpression: 'insuredId = :insuredId',
-      ExpressionAttributeValues: {
-        ':insuredId': insuredId,
-      },
-    })
-    .promise();
+  try {
+    const result = await dynamo
+      .query({
+        TableName: tableName,
+        IndexName: 'insuredId-index',
+        KeyConditionExpression: 'insuredId = :insuredId',
+        ExpressionAttributeValues: {
+          ':insuredId': insuredId,
+        },
+      })
+      .promise();
 
-  return result.Items || [];
+    return result.Items || [];
+  } catch (error) {
+    console.error('Error querying DynamoDB for appointments:', error);
+    throw new Error('Error querying appointments from DynamoDB');
+  }
+}
+
+export async function updateAppointmentStatus(
+  appointmentId: string,
+  status: 'pending' | 'completed' | 'failed'
+) {
+  try {
+    console.log(
+      'Intentando actualizar el status del Appointment in DynamoDB',
+      appointmentId
+    );
+    await dynamo
+      .update({
+        TableName: tableName,
+        Key: {
+          id: appointmentId,
+        },
+        UpdateExpression: 'set #s = :status',
+        ExpressionAttributeNames: {
+          '#s': 'status',
+        },
+        ExpressionAttributeValues: {
+          ':status': status,
+        },
+        ConditionExpression: 'attribute_exists(id)',
+      })
+      .promise();
+    console.log('Se actualizo con exito !!');
+  } catch (error) {
+    console.error('Error updating appointment status in DynamoDB:', error);
+    throw new Error('Error updating appointment status');
+  }
 }

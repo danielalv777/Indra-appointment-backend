@@ -6,3 +6,8 @@ export interface Appointment {
   status: string;
   createdAt: string;
 }
+
+export interface AppointmentConfirmedEvent {
+  appointmentId: string;
+  countryISO: string;
+}

@@ -10,7 +10,7 @@ provider:
   runtime: nodejs20.x
   region: us-west-2
   memorySize: 1024
-  timeout: 30
+  timeout: 60
   environment:
     APPOINTMENTS_TABLE: AppointmentsTable
     SNS_TOPIC_ARN:
@@ -25,6 +25,8 @@ provider:
     RDS_USER: ${env:RDS_USER}
     RDS_PASSWORD: ${env:RDS_PASSWORD}
     RDS_DATABASE: ${env:RDS_DATABASE}
+    EVENT_BUS_NAME: default
+
   iam:
     role:
       statements:
@@ -53,6 +55,17 @@ provider:
           Resource:
             - Fn::GetAtt: [SQSPEQueue, Arn]
             - Fn::GetAtt: [SQSCLQueue, Arn]
+        # Permisos para EventBridge
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource: '*' # puede restringirse si creas un bus custom
+        # Nuevo SQS para recibir la confiirmacion y actualizar Dynamo
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource:
+            - Fn::GetAtt: [SQSConfirmedAppointments, Arn]
 
 plugins:
   - serverless-offline
@@ -77,6 +90,14 @@ functions:
       - http:
           path: appointments/{insuredId}
           method: get
+
+  appointment_update:
+    handler: src/lambdas/appointment_update/handler.handler
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [SQSConfirmedAppointments, Arn]
+          batchSize: 3
 
   appointment_pe:
     handler: src/lambdas/appointment_pe/handler.handler
@@ -113,21 +134,25 @@ resources:
       Properties:
         TableName: AppointmentsTable
         AttributeDefinitions:
-          - AttributeName: insuredId
+          - AttributeName: id
             AttributeType: S
-          - AttributeName: scheduleId
-            AttributeType: N
           - AttributeName: status
             AttributeType: S
-        KeySchema:
           - AttributeName: insuredId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
             KeyType: HASH
-          - AttributeName: scheduleId
-            KeyType: RANGE
         GlobalSecondaryIndexes:
           - IndexName: status-index
             KeySchema:
               - AttributeName: status
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: insuredId-index
+            KeySchema:
+              - AttributeName: insuredId
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
@@ -149,6 +174,12 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: SQS_CL
+
+    # SQS para confirmacion
+    SQSConfirmedAppointments:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: SQS_ConfirmedAppointments
 
     # SNS → SQS PE (filtro: PE)
     SNSSubscriptionPE:
@@ -208,3 +239,38 @@ resources:
                 ArnEquals:
                   aws:SourceArn:
                     Ref: AppointmentsSNSTopic
+
+    # Event Bridge reglas
+    EventBridgeToSQSRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: AppointmentConfirmedRule
+        EventPattern:
+          source:
+            - appointments
+          detail-type:
+            - AppointmentConfirmed
+        Targets:
+          - Arn:
+              Fn::GetAtt:
+                - SQSConfirmedAppointments
+                - Arn
+            Id: 'SendToConfirmedSQS'
+
+    AllowEventBridgeToSendToSQS:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - Ref: SQSConfirmedAppointments
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowEventBridgeSend
+              Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource:
+                Fn::GetAtt:
+                  - SQSConfirmedAppointments
+                  - Arn

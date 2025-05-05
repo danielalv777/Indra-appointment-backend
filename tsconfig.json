@@ -5,10 +5,16 @@
     "moduleResolution": "Node",
     "strict": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
   },
-  "include": ["src"]
+  "include": [
+    "src/**/*",
+    "__tests__/**/*"
+  ],
+  "exclude": ["node_modules"]
 }
