@@ -59,7 +59,7 @@ provider:
         - Effect: Allow
           Action:
             - events:PutEvents
-          Resource: '*' # puede restringirse si creas un bus custom
+          Resource: '*'
         # Nuevo SQS para recibir la confiirmacion y actualizar Dynamo
         - Effect: Allow
           Action:
@@ -70,7 +70,6 @@ provider:
 plugins:
   - serverless-offline
   - serverless-openapi-documentation
-  - serverless-finch
 
 custom:
   documentation:
@@ -213,8 +212,8 @@ functions:
       securityGroupIds:
         - sg-0204dfd38ec948db9 # Security group que permita tráfico al RDS (MySQL)
       subnetIds:
-        - subnet-0b2024a926dd1dc6f # Subred privada 1
-        - subnet-0a4692cd2ac93a41c # Subred privada 2
+        - subnet-0b2024a926dd1dc6f # Subred publica 1
+        - subnet-0a4692cd2ac93a41c # Subred publica 2
 
   appointment_cl:
     handler: src/lambdas/appointment_cl/handler.handler

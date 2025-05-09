@@ -18,9 +18,9 @@ export async function publishToSNS(data: AppointmentInput & { id: string }) {
     });
 
     await client.send(command);
-    console.log('Exito enviando el SNS');
+    console.log('✅ Exito enviando el SNS');
   } catch (error) {
-    console.log('SNS publish error', error);
+    console.log('❌ SNS publish error', error);
     throw error;
   }
 }

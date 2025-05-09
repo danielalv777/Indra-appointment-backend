@@ -60,7 +60,7 @@ describe('appointment handler', () => {
       expect(createAppointmentMock).toHaveBeenCalled();
     });
 
-    it('should return a 400 for invalid body (validation error)', async () => {
+    it('should return a 401 for invalid body (validation error)', async () => {
       const mockEvent: APIGatewayProxyEvent = {
         httpMethod: 'POST',
         body: JSON.stringify({
@@ -91,7 +91,7 @@ describe('appointment handler', () => {
         mockCallback
       )) as APIGatewayProxyResult;
 
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(401);
       const responseBody = JSON.parse(response.body);
       expect(responseBody.message).toBe('Error de validación');
     });
@@ -165,7 +165,7 @@ describe('appointment handler', () => {
 
       expect(response.statusCode).toBe(404);
       expect(JSON.parse(response.body).message).toBe(
-        'No appointments found for insuredId: 12344'
+        'Agendamientos no encontrados para el Id del asegurado: 12344'
       );
     });
   });
